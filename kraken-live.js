@@ -77,9 +77,9 @@
       const rect = this.host.getBoundingClientRect();
       if (this.host.id === "kraken-ocean") {
         const rows = [...$("live-document").querySelectorAll(".doc-line")]; rows.forEach(r => r.classList.remove("scanned"));
-        const visible = rows.filter(r => { const b = r.getBoundingClientRect(); return b.top >= rect.top + 48 && b.bottom <= rect.bottom - 46; });
+        const visible = rows.filter(r => { const b = r.getBoundingClientRect(); return b.height > 0 && b.top >= rect.top + 48 && b.bottom <= rect.bottom - 46; });
         this.targets = Array.from({length:8}, (_, i) => {
-          if (!visible.length) return null;
+          if (!visible.length) return this.host.classList.contains("show-source") ? {x:28 + ((i*83+step*29)%Math.max(1,this.width-58)),y:60+((i*53+step*22)%Math.max(1,this.height-110)),line:"DATA"} : null;
           const row = visible[(step + i * 3) % visible.length]; const b = row.getBoundingClientRect();
           row.classList.add("scanned");
           const content = row.querySelector(".line-text");
