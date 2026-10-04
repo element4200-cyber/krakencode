@@ -15,16 +15,18 @@
   const change = n => n != null && Number.isFinite(Number(n)) ? (Number(n) >= 0 ? "+" : "") + Number(n).toFixed(1) + "%" : "—";
   const host = url => { try { return new URL(url).hostname; } catch { return "unknown"; } };
   function publicUrl(value) {
-    let u; try { u = new URL(value); } catch { throw new Error("Enter a complete public HTTPS URL."); }
-    if (u.protocol !== "https:" || u.username || u.password || u.port && u.port !== "443") throw new Error("Use a public HTTPS URL without credentials or a custom port.");
+    const raw=String(value || "").trim();
+    let u; try { u = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw); } catch { throw new Error("Enter a public webpage URL, such as example.com/page."); }
+    if (!["https:","http:"].includes(u.protocol) || u.username || u.password || u.port && u.port !== "443" && u.port !== "80") throw new Error("Use a public HTTP or HTTPS URL without credentials or a custom port.");
     const h = u.hostname.toLowerCase();
     if (!h.includes(".") || /(^|\.)(localhost|local|internal|test)$/.test(h) || /^\[/.test(h) || /^\d{1,3}(\.\d{1,3}){3}$/.test(h)) throw new Error("Only public website domains are supported.");
     u.hash = ""; return u.href;
   }
-  function safeLink(value) { try { const u = new URL(value); return u.protocol === "https:" ? u.href : ""; } catch { return ""; } }
+  function safeLink(value) { try { const u = new URL(value); return ["https:","http:"].includes(u.protocol) ? u.href : ""; } catch { return ""; } }
+  const looksLikeUrl = value => /^https?:\/\//i.test(value) || /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}(?:[/?#][^\s]*)?$/i.test(value);
   function validCa(value) {
     let ca = String(value || "").trim();
-    if (/^https?:\/\//i.test(ca)) {
+    if (looksLikeUrl(ca)) {
       const u = new URL(publicUrl(ca));
       if (!/^(www\.)?pump\.fun$/.test(u.hostname)) throw new Error("Paste a Solana CA or a pump.fun token URL.");
       ca = u.pathname.match(/^\/(?:coin\/)?([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/)?.[1] || "";
@@ -62,9 +64,10 @@
   const json = async path => JSON.parse(await request("https://api.dexscreener.com" + path));
   function manualPriority() { state.manualUntil = Date.now() + 35000; state.controller?.abort(); }
   function feedbackHtml(f) {
-    return `<h3>${escape(f.title)}</h3><p class="feedback-summary">${escape(f.summary)}</p><ul>${f.details.map(d => `<li>${escape(d)}</li>`).join("")}</ul>${f.links?.length ? `<div class="feedback-links">${f.links.map((link,i) => safeLink(link) ? `<a href="${escape(safeLink(link))}" target="_blank" rel="noopener noreferrer">source ${i+1} ↗</a>` : "").join(" ")}</div>` : ""}<p class="hint">${escape(f.note)}</p>`;
+    const verdict=f.verdict ? `<div class="token-verdict ${escape(f.verdict.tone)}"><b>${escape(f.verdict.label)}</b><ul>${f.verdict.reasons.map(r=>`<li>${escape(r)}</li>`).join("")}</ul><span>Market opinion from transparent rules · contract safety is unverified</span></div>` : "";
+    return `${verdict}<h3>${escape(f.title)}</h3><p class="feedback-summary">${escape(f.summary)}</p><ul>${f.details.map(d => `<li>${escape(d)}</li>`).join("")}</ul>${f.links?.length ? `<div class="feedback-links">${f.links.map((link,i) => safeLink(link) ? `<a href="${escape(safeLink(link))}" target="_blank" rel="noopener noreferrer">source ${i+1} ↗</a>` : "").join(" ")}</div>` : ""}<p class="hint">${escape(f.note)}</p>`;
   }
-  function feedbackText(f) { return [f.summary, ...f.details, f.note].join("\n\n"); }
+  function feedbackText(f) { return [...(f.verdict ? [f.verdict.label,...f.verdict.reasons] : []), f.summary, ...f.details, f.note].join("\n\n"); }
   function viewSource(enabled) {
     const pumpView = state.active?.kind === "token" && state.active.sourceMode === "pump";
     const destination = pumpView ? safeLink(state.active.page.url) : state.active?.embed;
@@ -79,10 +82,12 @@
     $("view-text").setAttribute("aria-pressed", String(!enabled));
   }
   function showWorkspace(page, {kind = "page", embed = "", feedback, sourceView = false, ca = ""} = {}) {
+    const changedSource=state.active?.page.url !== page.url || state.active?.page.title !== page.title;
     const sourceMode = kind === "token" && state.active?.ca === ca ? state.active.sourceMode : "chart";
     state.active = {page, kind, embed, feedback: feedback || insights.document(page.text), ca, sourceMode};
     kraken?.setPage(page);
     $("feedback-content").innerHTML = feedbackHtml(state.active.feedback);
+    if (changedSource) $("feedback-panel").scrollTop=0;
     $("monitor-task").textContent = page.title;
     $("view-source").disabled = !embed;
     $("view-pump").hidden = kind !== "token";
@@ -133,7 +138,8 @@
     $("movers-body").innerHTML = pairs.map(p => {
       const icon = safeLink(p.info?.imageUrl);
       const ca = p.baseToken.address;
-      return `<tr><td><div class="token-name"><span class="token-icon">${icon ? `<img src="${escape(icon)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : escape((p.baseToken.symbol || "?").slice(0, 2))}</span><div><div class="token-symbol" title="${escape(p.baseToken.name)}">${escape(p.baseToken.symbol)}</div><div class="token-sub">${escape(p.dexId)}</div></div></div></td><td>${escape(price(p.priceUsd))}</td><td class="${Number(p.priceChange?.h24) >= 0 ? "positive" : "negative"}">${escape(change(p.priceChange?.h24))}</td><td>${escape(usd(p.volume?.h24))}</td><td>${escape(usd(p.marketCap))}</td><td><button data-track="${escape(ca)}" aria-label="Track ${escape(p.baseToken.symbol)}">track</button></td></tr>`;
+      const verdict = insights.verdict(p);
+      return `<tr><td><div class="token-name"><span class="token-icon">${icon ? `<img src="${escape(icon)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : escape((p.baseToken.symbol || "?").slice(0, 2))}</span><div><div class="token-symbol" title="${escape(p.baseToken.name)}">${escape(p.baseToken.symbol)}</div><div class="token-sub">${escape(p.dexId)}</div><span class="verdict-mini ${escape(verdict.tone)}" title="${escape(verdict.reasons.join(" "))}">${escape(verdict.tone === "caution" ? "MIXED" : verdict.tone.toUpperCase())}</span></div></div></td><td>${escape(price(p.priceUsd))}</td><td class="${Number(p.priceChange?.h24) >= 0 ? "positive" : "negative"}">${escape(change(p.priceChange?.h24))}</td><td>${escape(usd(p.volume?.h24))}</td><td>${escape(usd(p.marketCap))}</td><td><button data-track="${escape(ca)}" aria-label="Track ${escape(p.baseToken.symbol)}">track</button></td></tr>`;
     }).join("");
     $("tokens-stat").textContent = fmt(state.pairs.length);
   }
@@ -269,11 +275,11 @@
   }
   async function explore(raw, {show = true} = {}) {
     if (state.webBusy) throw new Error("An exploration request is already running.");
-    const query = String(raw || "").trim(); if (!query) throw new Error("Enter a search phrase or public HTTPS URL.");
+    const query = String(raw || "").trim(); if (!query) throw new Error("Enter a search phrase or any public webpage URL.");
     manualPriority(); state.webBusy = true; $("web-submit").disabled = true; $("web-input").value = query;
     // Stop an automatic request so the visitor's own request gets priority.
     state.controller?.abort();
-    const isUrl = /^https?:\/\//i.test(query);
+    const isUrl = looksLikeUrl(query);
     status("web-status", isUrl ? "Reading public page…" : "Searching the web…");
     try {
       const result = isUrl ? await readPage(query,{show}) : await searchWeb(query);
@@ -337,7 +343,7 @@
       let reply;
       if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(message) || /^https:\/\/(www\.)?pump\.fun\/(coin\/)?[1-9A-HJ-NP-Za-km-z]{32,44}\/?(?:\?.*)?$/.test(message)) {
         const result = await trackToken(message); reply = result.feedback;
-      } else if (/^https:\/\/\S+$/i.test(message)) {
+      } else if (looksLikeUrl(message)) {
         const result = await explore(message,{show:false}); reply = result.feedback;
       } else if (/^(search|find)\s+/i.test(message)) {
         const result = await explore(message.replace(/^(search|find)\s+/i,""),{show:false});
@@ -417,7 +423,7 @@
     const lifecycle = new AbortController(); window.addEventListener("pagehide", () => lifecycle.abort(), { once: true });
     const tools = [
       { name: "track_solana_token", title: "Track Solana token", description: "Look up a Solana CA, update the visible token panel, and save this CA in this browser.", inputSchema: { type: "object", properties: { contractAddress: { type: "string" } }, required: ["contractAddress"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: true }, execute: input => trackToken(input?.contractAddress) },
-      { name: "explore_public_web", title: "Explore public web", description: "Search public webpages or read a public HTTPS URL with extractive feedback; update results and locally save any page read. Queries and URLs go to public services.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 500 } }, required: ["query"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: true }, execute: input => explore(input?.query) },
+      { name: "explore_public_web", title: "Explore public web", description: "Search public webpages or read a public HTTPS URL with extractive feedback; update results and locally save any page read. Queries and URLs go to public services.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 2000 } }, required: ["query"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: true }, execute: input => explore(input?.query) },
       { name: "chat_with_kraken", title:"Chat with the Kraken reader",description:"Analyze pasted text locally or retrieve a public URL or token CA and return automated source excerpts or market feedback. Updates the on-screen chat and scan. URLs and CAs go to public services.",inputSchema:{type:"object",properties:{message:{type:"string",maxLength:20000}},required:["message"],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:true},execute:input=>chat(input?.message)}
     ];
     for (const tool of tools) { try { Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })).catch(() => {}); } catch {} }

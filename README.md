@@ -18,3 +18,6 @@ Edit config.js contractAddress to set the public KrakenCode CA for all visitors 
 
 ## Runtime & privacy
 Runs only while the browser tab is visible. Service rate limits, caching, outages and pending requests can delay refresh. Last CA, public pages (20 maximum), and movers cache use localStorage. Chat messages (30) and pasted sources (10) stay only in session memory. Pasted text is never sent to a text-analysis backend. URLs, searches and CAs use their documented public services. External chart/page frames are sandboxed without forms, popups or top-level navigation. Cross-origin frames cannot be read; feedback uses fetched text/API data. Untrusted content is escaped or inserted as text.
+
+## Verdicts and general websites
+The dashboard stacks movers directly below the introduction, alongside the live monitor. Public URL input accepts bare domains, HTTP and HTTPS for any topic. Kraken opinions are transparent market rules (GOOD / BAD / MIXED / UNKNOWN) with reasons. Required metrics, stale data, and contract-security limitations are explicit in the manual. Random 4–7 second hyper bursts animate the creature; motion pause and reduced-motion settings are respected.

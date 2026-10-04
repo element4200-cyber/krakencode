@@ -37,7 +37,7 @@
     page = value; lines = wrap(value.text); offset = 0; lastAdvance = performance.now();
     $("live-doc-title").textContent = value.title || "Retrieved document";
     const source = $("live-doc-source");
-    try { const url = new URL(value.url); source.href = url.protocol === "https:" ? url.href : "#"; source.hidden = url.protocol !== "https:"; } catch { source.hidden = true; }
+    try { const url = new URL(value.url); const publicLink=["https:","http:"].includes(url.protocol); source.href = publicLink ? url.href : "#"; source.hidden = !publicLink; } catch { source.hidden = true; }
     renderDocument(); setMode("collected");
   }
   function beginRead(url) {
@@ -57,6 +57,7 @@
     constructor(host) {
       this.host = host; this.canvas = host.querySelector("canvas"); this.ctx = this.canvas.getContext("2d");
       this.width = 0; this.height = 0; this.visible = false; this.targets = []; this.tips = []; this.clock = 0; this.last = 0; this.pointer = null; this.scanTick = -1;
+      this.swimClock=0;this.nextHyper=4+Math.random()*8;this.hyperStart=null;this.hyperDuration=0;this.hyperCount=0;this.burstAngle=0;
       this.resize = new ResizeObserver(() => this.size()); this.resize.observe(host);
       this.intersection = new IntersectionObserver(entries => { this.visible = entries[0].isIntersecting; }); this.intersection.observe(host);
       host.addEventListener("pointermove", e => { const r = host.getBoundingClientRect(); this.pointer = {x:e.clientX-r.left,y:e.clientY-r.top}; });
@@ -95,12 +96,24 @@
       if (!this.ctx || !this.visible || !this.width || !this.height) { this.last = now; return; }
       const dt = Math.min((now - (this.last || now)) / 1000, .05); this.last = now;
       if (!motionPaused) this.clock += dt;
-      const t = this.clock, ctx = this.ctx, w = this.width, h = this.height;
+      if (!motionPaused && !reduced.matches && this.hyperStart===null && this.clock>=this.nextHyper) {
+        this.hyperStart=this.clock;this.hyperDuration=4+Math.random()*3;this.hyperCount++;this.burstAngle=Math.random()*Math.PI*2;
+      }
+      let energy=0;
+      if (this.hyperStart!==null && !reduced.matches) {
+        const elapsed=this.clock-this.hyperStart;
+        if(elapsed<this.hyperDuration) energy=Math.min(1,elapsed/.6,(this.hyperDuration-elapsed)/.9);
+        else {this.hyperStart=null;this.nextHyper=this.clock+12+Math.random()*24;}
+      }
+      if (!motionPaused) this.swimClock+=dt*(1+energy*5);
+      const t = this.swimClock, ctx = this.ctx, w = this.width, h = this.height;
+      const hyper=energy>.05;
+      this.host.dataset.hyper=String(hyper);this.canvas.dataset.hyperCount=String(this.hyperCount);
       ctx.clearRect(0,0,w,h); this.getTargets(t);
       const scale = Math.min(w / 600, h / 500, 1.25);
       const active = mode === "reading" || mode === "searching";
-      const x = w * (.5 + .18 * Math.sin(t * .25));
-      const y = h * (.47 + .13 * Math.sin(t * .36 + 1.2));
+      const x = w * (.5 + .18 * Math.sin(t * .25) + energy*.10*Math.sin(t*1.7+this.burstAngle));
+      const y = h * (.47 + .13 * Math.sin(t * .36 + 1.2) + energy*.09*Math.cos(t*2.1+this.burstAngle));
       this.canvas.dataset.position = `${Math.round(x)},${Math.round(y)}`; this.canvas.dataset.phase = mode;
       this.canvas.dataset.frame = String(Math.floor(t * 30));
       // Floating particles stay in the same watery coordinate space as the page.
@@ -116,7 +129,7 @@
         const fallback={x:x+Math.cos((arm/8)*Math.PI*2+t*.10)*bodyR*2.8,y:y+Math.sin((arm/8)*Math.PI*2+t*.10)*bodyR*2.4};
         const target=this.targets[arm] || fallback;
         const tip=this.tips[arm] ||= {...fallback};
-        const lerp=motionPaused ? 0 : 1-Math.exp(-dt*1.8);
+        const lerp=motionPaused ? 0 : 1-Math.exp(-dt*(1.8+energy*6));
         tip.x+=(target.x-tip.x)*lerp; tip.y+=(target.y-tip.y)*lerp;
         const dx=tip.x-root.x, dy=tip.y-root.y, length=Math.hypot(dx,dy), side=arm%2 ? 1:-1;
         const bend=(45+25*Math.sin(t*.8+arm))*scale*side;
@@ -125,7 +138,7 @@
         const points=[];
         for(let j=0;j<=34;j++) {
           const u=j/34, v=1-u;
-          const wave=Math.sin(u*9-t*(active ? 2.8:1.8)+arm*1.1)*Math.sin(u*Math.PI)*16*scale;
+          const wave=Math.sin(u*9-t*(active ? 2.8:1.8)+arm*1.1)*Math.sin(u*Math.PI)*16*scale*(1+energy*1.2);
           points.push({x:v*v*v*root.x+3*v*v*u*c1.x+3*v*u*u*c2.x+u*u*u*tip.x-dy/(length||1)*wave,y:v*v*v*root.y+3*v*v*u*c1.y+3*v*u*u*c2.y+u*u*u*tip.y+dx/(length||1)*wave,u});
         }
         // Glow silhouette, dark core, segmented teal/purple circuitry and suckers.
@@ -150,7 +163,7 @@
         }
       }
       // A translucent three-dimensional code mantle, with latitude mesh and glyphs.
-      ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(t*.35)*.12);
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(t*.35)*(.12+energy*.22));
       const rx=bodyR*.78,ry=bodyR;
       const gradient=ctx.createRadialGradient(-rx*.3,-ry*.35,2,0,0,ry*1.3);
       gradient.addColorStop(0,"#2c616edd");gradient.addColorStop(.6,"#17333ff5");gradient.addColorStop(1,"#170f2fe6");
@@ -167,8 +180,8 @@
       }
       for(let i=-3;i<=3;i++){ctx.beginPath();ctx.ellipse(i*rx*.12,-bodyR*.35,rx*.18+Math.abs(i)*rx*.13,ry,0,0,Math.PI*2);ctx.strokeStyle="#92e1de33";ctx.stroke();}
       ctx.restore();
-      // Eye colors and brightness react to the request lifecycle, not a random timer.
-      const pulse=.8+Math.sin(t*(active?5:2))*.2, boosted=now<pulseUntil;
+      // Hyper energy brightens the eyes smoothly; lifecycle colors stay red/purple.
+      const pulse=.9+Math.sin(this.clock*(active?5:2))*.1, boosted=now<pulseUntil || hyper;
       const focus=this.pointer || this.tips[1] || {x:x+20,y:y+20};
       for(let eye=0;eye<2;eye++) {
         const ex=(eye?1:-1)*rx*.48,ey=bodyR*.01;
@@ -183,6 +196,10 @@
         ctx.fillStyle="#ffe6ff";ctx.beginPath();ctx.arc(ex-2*scale,ey-4*scale,1.5*scale,0,Math.PI*2);ctx.fill();
       }
       ctx.restore();
+      if (hyper) {
+        ctx.fillStyle="#311a4ccc";ctx.fillRect(18,h-79,153,24);ctx.strokeStyle="#b476eaa0";ctx.lineWidth=1;ctx.strokeRect(18,h-79,153,24);
+        ctx.fillStyle="#e2b1ff";ctx.font="11px monospace";ctx.fillText("HYPER / burst " + this.hyperCount,28,h-63);
+      }
     }
   }
   document.querySelectorAll(".kraken-stage").forEach(host=>scenes.push(new Scene(host)));
