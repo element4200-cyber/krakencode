@@ -1,8 +1,8 @@
 # KrakenCode
 
-Public dashboard: https://element4200-cyber.github.io/krakencode/
+Public dashboard: https://krakencode.fun/
 
-Dependency-free static website. Upload index.html, style.css, app.js, feedback.js, kraken-live.js, config.js, kraken.png and .nojekyll to GitHub Pages. No build required.
+Dependency-free static website. Upload index.html, style.css, app.js, feedback.js, kraken-live.js, config.js, kraken.png, CNAME and .nojekyll to GitHub Pages. No build required. Preserve CNAME when updating the site; it assigns krakencode.fun to this repository. Cloudflare DNS aliases the root and www to element4200-cyber.github.io, with DNS-only records and automatic root CNAME flattening.
 
 ## Features
 - Top project CA and separate visitor scanner accepting Solana CAs and pump.fun URLs.
