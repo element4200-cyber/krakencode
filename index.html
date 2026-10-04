@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#061319">
+  <meta name="description" content="KrakenCode explores the crypto web and surfaces live pump.fun token movers. Track a Solana contract, search the web, and read public pages.">
+  <title>krakencode · beneath the surface</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23061319'/%3E%3Ctext x='5' y='24' fill='%237bf4e0' font-family='monospace' font-size='23'%3E%7BK%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css"><script src="./config.js" defer></script><script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to dashboard</a>
+  <header class="topbar">
+    <a class="brand" href="#live" aria-label="KrakenCode home">{k}</a>
+    <nav aria-label="Sections"><a href="#live" class="active">0:live<span>*</span></a><a href="#movers">1:movers</a><a href="#explore">2:explore</a><button id="manual-open">3:manual</button></nav>
+    <div class="top-status"><span class="dot"></span><span id="network-status">connecting</span></div>
+    <button class="header-ca" id="focus-ca">paste a CA</button>
+  </header>
+  <main id="main">
+    <section id="live" class="opening">
+      <div class="intro">
+        <div class="command"><span>~/krakencode</span> <b>❯</b> kraken awaken --live</div>
+        <div class="eyebrow">THE CRYPTO WEB. BELOW THE SURFACE.</div>
+        <h1>kraken<span>code</span><i>_</i></h1>
+        <h2>A mythical mind.<br>A real-time pulse.</h2>
+        <p class="intro-copy">Eight arms in the crypto web. KrakenCode reads public pages, finds the signal, and brings pump.fun movers to the surface.</p>
+        <div class="stats" aria-label="Session statistics"><div><b id="pages-stat">0</b><span>pages read</span></div><div><b id="words-stat">0</b><span>words collected</span></div><div><b id="tokens-stat">—</b><span>tokens surfaced</span></div></div>
+        <form id="ca-form" class="ca-form"><label for="ca-input">$ YOUR TOKEN <span>SOLANA CONTRACT ADDRESS</span></label><div class="input-row"><input id="ca-input" autocomplete="off" spellcheck="false" placeholder="Paste your contract address after launch" maxlength="64" required aria-describedby="ca-message"><button type="submit" class="primary">track token</button></div></form>
+        <p id="ca-message" class="hint" role="status">No CA yet. Paste it here when your token goes live.</p>
+        <div id="token-detail" class="token-detail" hidden></div>
+        <div class="intro-bottom"><span class="ascii">[ 8 arms / 1 ocean ]</span><a href="#explore">start exploring</a></div>
+      </div>
+      <div class="kraken-monitor">
+        <div class="panel-bar"><span><span class="dot"></span> kraken_01</span><span id="kraken-state">awakening</span></div>
+        <div class="ocean"><img src="./kraken.png" width="1536" height="1024" alt="A luminous octopus made from cyan code glyphs, floating in translucent deep blue water"><div class="scanlines"></div><div class="ocean-coordinate">ENTITY: KRAKEN_01<br>ENV: DEEP_WEB<br>MODE: EXPLORATION</div><div class="ocean-tag">&lt; / &gt; sentience in the deep</div></div>
+        <div class="monitor-foot"><div><span class="signal-bars">▂▄▆█▆▄▂</span> <span id="monitor-task">waiting for first page</span></div><button id="pause-crawl">pause crawler</button></div>
+      </div>
+    </section>
+    <div class="workspace">
+      <section id="movers" class="panel movers-panel">
+        <div class="panel-heading"><div><span class="section-no">01 /</span><h2>movers<span class="accent">.</span></h2><span class="badge">pump.fun</span></div><button id="refresh-movers">refresh</button></div>
+        <div class="table-tools"><p>Discovered Solana tokens · DEX Screener</p><label for="sort-movers" class="sr-only">Sort movers</label><select id="sort-movers"><option value="h24">24h change</option><option value="h1">1h change</option><option value="volume">24h volume</option><option value="marketCap">market cap</option></select></div>
+        <div class="table-scroll"><table><thead><tr><th>TOKEN</th><th>PRICE</th><th>24H</th><th>VOL / 24H</th><th>MCAP</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="movers-body"><tr><td colspan="6" class="empty">Listening to the market…</td></tr></tbody></table></div>
+        <div class="panel-footer"><span id="movers-meta" role="status">Fetching live pairs</span><span>refresh / 60s</span></div>
+        <p class="data-note">A discovery sample, not every pump.fun token. Ranked from available DEX pairs. Prices may be delayed; unlisted tokens can be opened on pump.fun.</p>
+      </section>
+      <section id="explore" class="panel explore-panel">
+        <div class="panel-heading"><div><span class="section-no">02 /</span><h2>explore<span class="accent">.</span></h2></div><span class="badge">web reader</span></div>
+        <form id="web-form"><label for="web-input" class="sr-only">Search the web or enter a public webpage URL</label><div class="input-row"><span class="prompt">❯</span><input id="web-input" placeholder="Search the web or paste a https:// URL" maxlength="500" required autocomplete="off"><button class="primary" type="submit" id="web-submit">explore</button></div></form>
+        <div class="seed-links"><span>try:</span><button data-query="Solana whitepaper">solana whitepaper</button><button data-query="https://solana.com/docs">solana docs</button><button data-query="pump.fun documentation">pump.fun</button></div>
+        <div id="web-status" role="status" class="hint">Search public webpages, or read one directly.</div>
+        <div id="web-results" class="web-results"></div>
+        <div class="log-heading"><span>tail -f kraken_01.log</span><span>this browser session</span></div>
+        <div id="activity-log" class="activity-log" aria-label="Crawler activity"></div>
+        <div class="panel-footer"><span id="crawler-status">crawler / initializing</span><span id="domains-stat">0 domains</span></div>
+      </section>
+    </div>
+    <section class="library panel"><div class="panel-heading"><div><span class="section-no">03 /</span><h2>pages surfaced<span class="accent">.</span></h2></div><span class="badge" id="library-count">0 saved</span></div><div id="library-list" class="library-list"><p class="empty">Your collected pages will appear here.</p></div></section>
+  </main>
+  <footer class="site-footer"><div><b>krakencode</b> <span>"beneath the surface"</span></div><div><span class="dot"></span><span id="footer-state">awake</span><time id="clock"></time></div></footer>
+  <dialog id="manual"><div class="dialog-header"><h2>krakencode / manual</h2><button data-close="manual" aria-label="Close manual">close ×</button></div><div class="dialog-body"><h3>Meet the kraken</h3><p>KrakenCode is a browser-based explorer of the crypto web. The kraken is its digital mascot. Its activity log shows real requests made by your browser.</p><h3>Track a token</h3><p>Paste a Solana contract address into the token field. KrakenCode retrieves its indexed pairs, shows price, market cap and volume, and gives you links to DEX Screener and pump.fun. Your last CA stays in this browser. A new token may not have an indexed pair yet.</p><h3>Find movers</h3><p>The movers feed combines recent DEX Screener token profiles and boosted tokens with pump.fun and PumpSwap search results. It includes Solana pairs identified by a pump.fun address suffix, pump.fun link, or pump.fun / PumpSwap market. This is a sample, not a complete leaderboard. One pair per token is shown, prioritizing liquidity, then volume. Refreshes every 60 seconds while the page is visible.</p><h3>Explore the web</h3><p>Enter a search phrase to search DuckDuckGo through Jina Reader, or paste a public HTTPS URL to retrieve readable page text. Click “read page” on a result. Public services can rate-limit requests or block pages; errors appear in the interface, with a link to open the original source.</p><h3>How crawling works</h3><p>While this page is open, the crawler reads a small set of public crypto documentation pages, one at a time, every 45 seconds. Use “pause crawler” to stop it. Collected text is saved locally in this browser, up to 20 pages. No server crawls in the background after you close this page.</p><h3>Data & privacy</h3><p>Token lookups go to DEX Screener. Search phrases and URLs are sent to Jina Reader; search uses DuckDuckGo. Don't enter private links or access tokens. No wallet connection is needed. KrakenCode does not train a model, issue a token, manage a treasury, distribute fees, or execute trades.</p><p class="sources"><a href="https://docs.dexscreener.com/api/reference" target="_blank" rel="noopener noreferrer">DEX Screener API</a><a href="https://jina.ai/reader/" target="_blank" rel="noopener noreferrer">Jina Reader</a></p></div></dialog>
+  <dialog id="reader"><div class="dialog-header"><h2 id="reader-title">Page reader</h2><button data-close="reader" aria-label="Close page reader">close ×</button></div><div class="reader-toolbar"><a id="reader-source" target="_blank" rel="noopener noreferrer">open original</a><button id="download-page">download text</button></div><pre id="reader-content"></pre></dialog>
+</body>
+</html>
