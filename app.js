@@ -1,6 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
+  const kraken = window.KrakenLive;
   const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const storage = { get(key, fallback) { try { return JSON.parse(localStorage.getItem("krakencode:" + key)) ?? fallback; } catch { return fallback; } }, set(key, value) { try { localStorage.setItem("krakencode:" + key, JSON.stringify(value)); } catch { log("STORE", "Browser storage is full or unavailable; this session still works.", true); } } };
   const state = { pairs: [], pages: storage.get("pages", []), logs: [], paused: false, crawlBusy: false, webBusy: false, moversBusy: false, caBusy: false, seed: 0, readerPage: null, token: null, controller: null };
@@ -129,11 +130,13 @@
   }
   function openPage(page) {
     state.readerPage = page; $("reader-title").textContent = page.title; $("reader-source").href = safeLink(page.url); $("reader-content").textContent = page.text;
+    kraken?.setPage(page);
     if (!$("reader").open) $("reader").showModal();
   }
   async function readPage(raw, { show = true, signal } = {}) {
     const url = publicUrl(raw);
     log("GET", url); $("kraken-state").textContent = "reading"; $("monitor-task").textContent = "reading " + host(url);
+    kraken?.beginRead(url);
     try {
       const text = await request("https://r.jina.ai/" + url, 55000, signal);
       if (!text.includes("Markdown Content:") || /^(?:Title: )?(?:Just a moment|Access denied|Attention Required)/i.test(text) || text.length < 100) throw new Error("This page could not be read. Open the original source instead.");
@@ -144,9 +147,10 @@
       state.pages = [page, ...state.pages.filter(p => p.url !== url)].slice(0, 20); storage.set("pages", state.pages); renderLibrary();
       log("READ", `${host(url)} · ${fmt(page.words)} words collected.`);
       $("monitor-task").textContent = host(url) + " · " + fmt(page.words) + " words";
+      kraken?.setPage(page);
       if (show) openPage(page);
       return { url, title, words: page.words };
-    } catch (e) { log("ERROR", host(url) + " · " + e.message, true); throw e; }
+    } catch (e) { log("ERROR", host(url) + " · " + e.message, true); if (e.message !== "Request paused." || !state.webBusy) kraken?.setMode(e.message === "Request paused." ? "paused" : "error"); throw e; }
     finally { $("kraken-state").textContent = state.paused ? "paused" : "awake"; }
   }
   function plain(md) { return md.replace(/\*{4}/g, " ").replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/^[#*\s]+/, "").trim(); }
@@ -167,8 +171,10 @@
   async function searchWeb(query) {
     const q = String(query || "").trim(); if (!q || q.length > 500) throw new Error("Enter a search phrase of 1–500 characters.");
     log("SEARCH", q);
+    kraken?.setSearch(q);
     const text = await request("https://r.jina.ai/https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 55000);
     const results = parseSearch(text);
+    kraken?.setSearch(q, results);
     const fallback = "https://duckduckgo.com/?q=" + encodeURIComponent(q);
     $("web-results").innerHTML = results.map(r => `<article class="search-result"><a href="${escape(r.url)}" target="_blank" rel="noopener noreferrer">${escape(r.title)}</a><p>${escape(r.snippet)}</p><div class="result-bottom"><span>${escape(host(r.url))}</span><button data-read="${escape(r.url)}">read page</button></div></article>`).join("") + `<p class="hint"><a href="${escape(fallback)}" target="_blank" rel="noopener noreferrer">${results.length ? "Open full search on DuckDuckGo" : "Search unavailable here. Open DuckDuckGo to search directly."}</a></p>`;
     if (!results.length) { log("SEARCH", "No readable search results returned. Direct search link available.", true); return { query: q, results: [], fallback }; }
@@ -187,7 +193,7 @@
       const result = isUrl ? await readPage(query) : await searchWeb(query);
       status("web-status", isUrl ? `${fmt(result.words)} words collected. Page saved below.` : result.results.length ? `${result.results.length} results · choose a page to read` : "Search service returned no results. Use the direct search link below.", "success");
       return result;
-    } catch (e) { status("web-status", e.message, "error"); if (isUrl) { const link = safeLink(query); $("web-results").innerHTML = link ? `<p class="hint"><a href="${escape(link)}" target="_blank" rel="noopener noreferrer">Open original page</a></p>` : ""; } throw e; }
+    } catch (e) { status("web-status", e.message, "error"); kraken?.setMode("error"); if (isUrl) { const link = safeLink(query); $("web-results").innerHTML = link ? `<p class="hint"><a href="${escape(link)}" target="_blank" rel="noopener noreferrer">Open original page</a></p>` : ""; } throw e; }
     finally { state.webBusy = false; $("web-submit").disabled = false; }
   }
   async function crawl() {
@@ -210,6 +216,7 @@
   $("library-list").addEventListener("click", e => { const button = e.target.closest("[data-page]"); if (button) openPage(state.pages[Number(button.dataset.page)]); });
   $("pause-crawl").addEventListener("click", () => {
     state.paused = !state.paused; if (state.paused) state.controller?.abort();
+    kraken?.setMode(state.paused ? "paused" : "idle");
     $("pause-crawl").textContent = state.paused ? "resume crawler" : "pause crawler"; $("kraken-state").textContent = state.paused ? "paused" : "awake"; $("footer-state").textContent = state.paused ? "crawler paused" : "awake"; $("crawler-status").textContent = state.paused ? "crawler paused / manual exploration available" : "crawler resumed";
     log("CRAWL", state.paused ? "Automatic crawler paused." : "Automatic crawler resumed."); if (!state.paused) crawl();
   });
@@ -220,6 +227,7 @@
   document.querySelectorAll("nav a").forEach(a => a.addEventListener("click", () => { document.querySelectorAll("nav a").forEach(x => x.classList.toggle("active", x === a)); }));
   const tick = () => { $("clock").textContent = new Date().toLocaleString("en-US", { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }); }; tick(); setInterval(tick, 1000);
   renderLibrary(); log("BOOT", "KrakenCode awake. Connecting to public data sources.");
+  if (state.pages[0]) kraken?.setPage(state.pages[0]);
   const cached = storage.get("movers", null); if (cached && Array.isArray(cached.pairs)) { state.pairs = cached.pairs; renderMovers(); $("movers-meta").textContent = "Cached data / reconnecting"; }
   loadMovers(); const initialCa = window.KRAKENCODE_CONFIG?.contractAddress || storage.get("ca", ""); if (initialCa) trackToken(initialCa).catch(() => {});
   setTimeout(crawl, 1800); setInterval(crawl, 45000); setInterval(() => { if (!document.hidden) loadMovers(); }, 60000);

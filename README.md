@@ -8,11 +8,12 @@ A public, terminal-style crypto explorer with a luminous code kraken in transluc
 - Solana contract-address validation and lookup, price, market cap, volume and original-market links. Visitor CA saved in their browser.
 - Web search through DuckDuckGo via Jina Reader; read public HTTPS pages and download collected text.
 - A real seed crawler runs while the page is open, one page every 45 seconds, with pause/resume and a log of actual requests.
+- A live canvas octopus swims across retrieved page text and inside the document reader. Eight articulated tentacles probe text lines; red and purple eyes react to searching, reading, collection, and failed requests. Motion has its own pause control and respects reduced-motion preferences.
 - Local collection of the 20 most recent pages, responsive layout, keyboard support, reduced motion, and optional browser WebMCP actions.
 
 ## Publish on GitHub Pages
 
-Upload `index.html`, `style.css`, `app.js`, `config.js`, `kraken.png`, and `.nojekyll` to the root of a public repository. In **Settings → Pages**, select **Deploy from a branch**, branch **main**, folder **/(root)**, and Save. No build step or secrets are needed.
+Upload `index.html`, `style.css`, `app.js`, `kraken-live.js`, `config.js`, `kraken.png`, and `.nojekyll` to the root of a public repository. In **Settings → Pages**, select **Deploy from a branch**, branch **main**, folder **/(root)**, and Save. No build step or secrets are needed.
 
 ## Add your launched token for every visitor
 
